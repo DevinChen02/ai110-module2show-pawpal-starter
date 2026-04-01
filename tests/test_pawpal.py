@@ -260,3 +260,94 @@ def test_scheduler_detect_time_conflicts_returns_warning_messages() -> None:
 	assert conflicts[0] == (
 		"Warning: time conflict at 08:00 for Buddy: Morning Walk, Mochi: Feed Breakfast."
 	)
+
+
+def test_sorting_correctness_returns_tasks_in_chronological_order() -> None:
+	owner = Owner(name="Alex", available_minutes=120)
+	pet = Pet(name="Buddy", species="Dog", age=3, owner=owner)
+
+	pet.add_task(
+		Task(
+			title="Late Task",
+			duration_minutes=10,
+			priority="low",
+			category="general",
+			time_of_day="11:30",
+		)
+	)
+	pet.add_task(
+		Task(
+			title="Early Task",
+			duration_minutes=15,
+			priority="high",
+			category="exercise",
+			time_of_day="07:15",
+		)
+	)
+	pet.add_task(
+		Task(
+			title="Middle Task",
+			duration_minutes=20,
+			priority="medium",
+			category="feeding",
+			time_of_day="09:00",
+		)
+	)
+
+	scheduler = Scheduler(pet=pet)
+	ordered = scheduler.sort_by_time()
+
+	assert [task.time_of_day for task in ordered] == ["07:15", "09:00", "11:30"]
+
+
+def test_recurrence_logic_daily_complete_creates_following_day_task() -> None:
+	owner = Owner(name="Alex", available_minutes=60)
+	pet = Pet(name="Buddy", species="Dog", age=3, owner=owner)
+	task = Task(
+		title="Daily Walk",
+		duration_minutes=20,
+		priority="medium",
+		category="exercise",
+		frequency="daily",
+	)
+	pet.add_task(task)
+
+	task.mark_complete()
+
+	tasks = pet.get_tasks()
+	assert len(tasks) == 2
+	new_task = [pet_task for pet_task in tasks if pet_task is not task][0]
+	assert new_task.due_date == date.today() + timedelta(days=1)
+	assert new_task.completed is False
+
+
+def test_conflict_detection_flags_duplicate_times() -> None:
+	owner = Owner(name="Alex", available_minutes=120)
+	pet = Pet(name="Buddy", species="Dog", age=3, owner=owner)
+
+	pet.add_task(
+		Task(
+			title="Walk",
+			duration_minutes=20,
+			priority="high",
+			category="exercise",
+			time_of_day="08:00",
+		)
+	)
+	pet.add_task(
+		Task(
+			title="Feed",
+			duration_minutes=10,
+			priority="high",
+			category="feeding",
+			time_of_day="08:00",
+		)
+	)
+
+	scheduler = Scheduler(pet=pet)
+	conflicts = scheduler.detect_time_conflicts()
+
+	assert len(conflicts) == 1
+	assert "time conflict at 08:00" in conflicts[0]
+	assert "Buddy: Walk" in conflicts[0]
+	assert "Buddy: Feed" in conflicts[0]
