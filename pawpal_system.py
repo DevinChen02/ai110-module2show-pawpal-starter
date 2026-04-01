@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -51,6 +52,7 @@ class Task:
 	priority: Literal["low", "medium", "high"]
 	category: str
 	frequency: str = "daily"
+	due_date: date = field(default_factory=date.today)
 	time_of_day: str | None = None
 	pet: Pet | None = None
 	completed: bool = False
@@ -61,8 +63,27 @@ class Task:
 			raise ValueError("duration_minutes must be > 0")
 
 	def mark_complete(self) -> None:
-		"""Mark this task as completed."""
+		"""Mark this task complete and create next occurrence for recurring tasks."""
 		self.completed = True
+
+		normalized_frequency = self.frequency.strip().lower()
+		next_due_date: date | None = None
+		if normalized_frequency == "daily":
+			next_due_date = date.today() + timedelta(days=1)
+		elif normalized_frequency == "weekly":
+			next_due_date = date.today() + timedelta(days=7)
+
+		if next_due_date is not None and self.pet is not None:
+			next_task = Task(
+				title=self.title,
+				duration_minutes=self.duration_minutes,
+				priority=self.priority,
+				category=self.category,
+				frequency=self.frequency,
+				due_date=next_due_date,
+				time_of_day=self.time_of_day,
+			)
+			self.pet.add_task(next_task)
 
 	def to_dict(self) -> dict[str, Any]:
 		"""Serialize this task into a dictionary representation."""
@@ -72,6 +93,7 @@ class Task:
 			"priority": self.priority,
 			"category": self.category,
 			"frequency": self.frequency,
+			"due_date": self.due_date.isoformat(),
 			"time_of_day": self.time_of_day,
 			"pet": self.pet.name if self.pet else None,
 			"completed": self.completed,
@@ -117,13 +139,64 @@ class Scheduler:
 	tasks: list[Task] | None = None
 	time_budget: int | None = None
 
+	def detect_time_conflicts(self) -> list[str]:
+		"""Return warning messages for tasks sharing the same scheduled time.
+
+		This lightweight strategy reports collisions and does not raise exceptions.
+		"""
+		conflicts: list[str] = []
+		tasks_by_time: dict[str, list[Task]] = {}
+
+		for task in self.filter_tasks():
+			if not task.time_of_day:
+				continue
+			tasks_by_time.setdefault(task.time_of_day, []).append(task)
+
+		for time_of_day in sorted(tasks_by_time):
+			tasks_at_time = tasks_by_time[time_of_day]
+			if len(tasks_at_time) < 2:
+				continue
+
+			task_labels: list[str] = []
+			for task in tasks_at_time:
+				pet_name = task.pet.name if task.pet is not None else "Unknown pet"
+				task_labels.append(f"{pet_name}: {task.title}")
+
+			conflicts.append(
+				f"Warning: time conflict at {time_of_day} for {', '.join(task_labels)}."
+			)
+
+		return conflicts
+
+	def filter_tasks(self, completed: bool | None = None, pet_name: str | None = None) -> list[Task]:
+		"""Filter tasks by completion status and/or pet name.
+
+		- If ``completed`` is None, both complete and incomplete tasks are returned.
+		- If ``pet_name`` is provided, matching is case-insensitive.
+		"""
+		if self.tasks is not None:
+			tasks = list(self.tasks)
+		elif self.pet.owner.pets:
+			tasks = self.pet.owner.get_all_tasks()
+		else:
+			tasks = self.pet.get_tasks()
+
+		if completed is not None:
+			tasks = [task for task in tasks if task.completed is completed]
+
+		if pet_name is not None:
+			normalized_pet_name = pet_name.strip().lower()
+			tasks = [
+				task
+				for task in tasks
+				if task.pet is not None and task.pet.name.lower() == normalized_pet_name
+			]
+
+		return tasks
+
 	def _candidate_tasks(self) -> list[Task]:
 		"""Collect incomplete tasks relevant to this scheduling context."""
-		if self.tasks is not None:
-			return [task for task in self.tasks if not task.completed]
-		if self.pet.owner.pets:
-			return [task for task in self.pet.owner.get_all_tasks() if not task.completed]
-		return [task for task in self.pet.get_tasks() if not task.completed]
+		return self.filter_tasks(completed=False)
 
 	def _budget(self) -> int:
 		"""Return a non-negative time budget for scheduling."""
@@ -141,6 +214,16 @@ class Scheduler:
 		return sorted(
 			self.filter_by_time(),
 			key=lambda task: (-priority_rank[task.priority], task.duration_minutes, task.title.lower()),
+		)
+
+	def sort_by_time(self) -> list[Task]:
+		"""Sort schedulable tasks by HH:MM time strings.
+
+		Tasks without a set time are placed at the end.
+		"""
+		return sorted(
+			self.filter_by_time(),
+			key=lambda task: task.time_of_day if task.time_of_day else "99:99",
 		)
 
 	def build_plan(self) -> dict[str, Any]:

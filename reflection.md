@@ -92,12 +92,16 @@ Yes, I changed my design during implementation:
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+	My scheduler considers time budget, task priority, completion status, and time-of-day collisions. It only schedules tasks that fit within the owner's available minutes, sorts by priority (high to low), uses incomplete tasks for planning, and warns when two tasks share the same scheduled time.
 - How did you decide which constraints mattered most?
+	I prioritized time budget and task priority first because they most directly affect whether the schedule is realistic and whether important care tasks happen. Completion filtering and conflict warnings were added to improve day-to-day reliability without making the core logic too complex.
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+	A key tradeoff is using a greedy priority-first approach instead of a full optimization approach. The scheduler may not always maximize total task coverage, because it chooses higher-priority tasks first when time is limited.
 - Why is that tradeoff reasonable for this scenario?
+	This tradeoff is reasonable because PawPal+ is a practical daily assistant, not an advanced optimization system. The greedy method is faster, easier to explain, and easier to test, while still ensuring critical pet-care tasks are more likely to be included.
 
 ---
 

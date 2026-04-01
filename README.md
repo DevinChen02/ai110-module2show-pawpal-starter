@@ -22,6 +22,15 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+Recent scheduler updates improve day-to-day planning quality:
+
+- Cross-pet task support when building and filtering schedules
+- Sorting by both priority and time-of-day for clearer daily ordering
+- Completion-aware filtering so only active tasks are scheduled
+- Lightweight conflict detection that warns when tasks share the same time (instead of crashing)
+
 ## Getting started
 
 ### Setup
