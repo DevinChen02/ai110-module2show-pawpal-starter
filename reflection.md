@@ -79,6 +79,11 @@ classDiagram
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+Yes, I changed my design during implementation:
+1. Added stricter priority typing on Task.priority to Literal["low", "medium", "high"] in pawpal_system.py:24.
+2. Added explicit Task.pet relationship (Pet | None) in pawpal_system.py:26 to match your UML “Task involves one Pet” model.
+3. Made Scheduler.tasks and Scheduler.time_budget optional in pawpal_system.py:57 and pawpal_system.py:58, so later logic can safely default to pet.tasks and owner.available_minutes and avoid dual-source drift.
+
 
 ---
 
