@@ -25,6 +25,35 @@ def task_table_rows() -> list[dict[str, object]]:
     return [task.to_dict() for task in st.session_state.pet.get_tasks()]
 
 
+def task_objects_to_rows(tasks: list[Task]) -> list[dict[str, object]]:
+    """Convert task objects into rows for Streamlit tables."""
+    return [task.to_dict() for task in tasks]
+
+
+def conflict_rows(conflicts: list[str]) -> list[dict[str, str]]:
+    """Convert scheduler conflict messages into structured rows for display."""
+    rows: list[dict[str, str]] = []
+
+    for warning in conflicts:
+        details = warning.removeprefix("Warning: ").strip().rstrip(".")
+        time_slot = "unspecified"
+        tasks = details
+
+        if details.startswith("time conflict at ") and " for " in details:
+            after_prefix = details.removeprefix("time conflict at ")
+            time_slot, tasks = after_prefix.split(" for ", maxsplit=1)
+
+        rows.append(
+            {
+                "time": time_slot,
+                "tasks_in_conflict": tasks,
+                "impact": "Owner may not complete all tasks at this time",
+            }
+        )
+
+    return rows
+
+
 initialize_session_objects()
 
 st.markdown(
@@ -114,6 +143,10 @@ st.caption("Generate a schedule from your current tasks and available time.")
 
 if st.button("Generate schedule"):
     scheduler = Scheduler(pet=st.session_state.pet)
+    incomplete_tasks = scheduler.filter_tasks(completed=False)
+    sorted_by_priority = scheduler.sort_by_priority()
+    sorted_by_time = scheduler.sort_by_time()
+    conflicts = scheduler.detect_time_conflicts()
     explained_plan = scheduler.explain_plan()
     plan = explained_plan["plan"]
 
@@ -121,6 +154,40 @@ if st.button("Generate schedule"):
     st.write(f"Time budget: {plan['time_budget']} minutes")
     st.write(f"Total time used: {plan['total_time_used']} minutes")
     st.write(f"Remaining minutes: {plan['remaining_minutes']}")
+
+    st.markdown("### Scheduler insights")
+    if incomplete_tasks:
+        st.success(f"Found {len(incomplete_tasks)} incomplete task(s) ready for scheduling.")
+    else:
+        st.warning("No incomplete tasks found. Add tasks before generating a schedule.")
+
+    if conflicts:
+        st.warning(
+            f"{len(conflicts)} scheduling conflict(s) detected. Review the overlaps below before relying on this plan."
+        )
+        st.table(conflict_rows(conflicts))
+        with st.expander("How to resolve these conflicts", expanded=False):
+            st.markdown(
+                """
+- Move one overlapping task to a different time slot.
+- Shorten or split long tasks if possible.
+- Keep high-priority care tasks at fixed times first.
+"""
+            )
+    else:
+        st.success("No task time conflicts were detected.")
+
+    st.markdown("### Tasks sorted by priority")
+    if sorted_by_priority:
+        st.table(task_objects_to_rows(sorted_by_priority))
+    else:
+        st.warning("No tasks fit the available time budget for priority sorting.")
+
+    st.markdown("### Tasks sorted by time")
+    if sorted_by_time:
+        st.table(task_objects_to_rows(sorted_by_time))
+    else:
+        st.warning("No tasks with schedulable times are available for time-based sorting.")
 
     st.markdown("### Scheduled tasks")
     if plan["scheduled_tasks"]:

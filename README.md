@@ -31,6 +31,39 @@ Recent scheduler updates improve day-to-day planning quality:
 - Completion-aware filtering so only active tasks are scheduled
 - Lightweight conflict detection that warns when tasks share the same time (instead of crashing)
 
+## Features
+
+PawPal+ includes a scheduling engine with clear, test-backed decision rules:
+
+- Priority-based scheduling under a fixed time budget:
+	- Uses a greedy planner that selects tasks in priority order (`high` > `medium` > `low`) while total minutes stay within the owner's available time.
+	- When priorities are equal, tasks are tie-broken by shorter duration first, then alphabetical title order for deterministic results.
+- Chronological sorting by time-of-day:
+	- Supports HH:MM ordering for daily routines (for example, `07:30` before `08:00`).
+	- Tasks without a set time are automatically placed at the end of the list.
+- Conflict warnings for overlapping times:
+	- Detects when two or more tasks share the same `time_of_day`.
+	- Returns non-blocking warning messages so users can adjust plans without app crashes.
+- Completion-aware filtering:
+	- Filters tasks by completion state (`completed=True/False`) to focus planning on active work.
+	- Supports optional pet-name filtering (case-insensitive) for multi-pet households.
+- Daily and weekly recurrence generation:
+	- Marking a `daily` task complete creates the next occurrence due tomorrow.
+	- Marking a `weekly` task complete creates the next occurrence due in 7 days.
+	- Non-recurring tasks (for example, `once`) are completed without auto-creating a new task.
+- Cross-pet planning support:
+	- Scheduler can gather tasks across all pets owned by the same owner, enabling household-level planning and conflict checks.
+- Explainable plan output:
+	- Produces both machine-readable plan data (scheduled tasks, skipped tasks, time used, remaining minutes) and human-readable reasoning for each include/skip decision.
+
+## 📸 Demo
+
+Final Streamlit app screenshot:
+
+<a href="app_demo.png" target="_blank">
+	<img src="app_demo.png" alt="PawPal+ Streamlit app screenshot" width="900" />
+</a>
+
 ## Getting started
 
 ### Setup
