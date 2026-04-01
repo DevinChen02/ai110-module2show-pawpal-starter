@@ -6,6 +6,74 @@
 
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
+  
+The revised UML design uses four classes for easier implementation. Owner holds the owner's name and daily time budget. Pet holds the pet's name, species, and age, and is linked to one Owner. Task represents a single care action with a title, duration, priority, and category, and each Task involves one Pet. Scheduler takes a Pet and its Task list, filters and sorts tasks by priority and available time, then returns plan data directly (scheduled tasks, skipped tasks, total time used, and reasoning) instead of using a separate DailyPlan class. For this project scope, one Owner has one Pet, and the Scheduler builds a plan for the Pet by selecting from its Tasks.
+
+Owner Class:
+Attributes: name, available_minutes (daily time budget), preferences (e.g., preferred task order or times)
+Methods: set_available_time(), update_preferences()
+
+Pet Class:
+Attributes: name, species, age, owner
+Methods: get_tasks(), add_task(task), remove_task(task)
+
+Task Class:
+Attributes: title, duration_minutes, priority ("low" / "medium" / "high"), category (e.g., walk, feeding, meds), completed
+Methods: mark_complete(), to_dict() (for display/storage)
+
+Scheduler Class:
+Attributes: pet, tasks, time_budget
+Methods:
+filter_by_time() — drop tasks that won't fit
+sort_by_priority() — rank remaining tasks
+build_plan() — return scheduled_tasks, skipped_tasks, and total_time_used
+explain_plan() — return human-readable reasoning for each inclusion/exclusion
+
+```mermaid
+classDiagram
+	class Owner {
+		+name: str
+		+available_minutes: int
+		+preferences: dict
+		+set_available_time(minutes: int)
+		+update_preferences(preferences: dict)
+	}
+
+	class Pet {
+		+name: str
+		+species: str
+		+age: int
+		+owner: Owner
+		+get_tasks() List~Task~
+		+add_task(task: Task)
+		+remove_task(task: Task)
+	}
+
+	class Task {
+		+title: str
+		+duration_minutes: int
+		+priority: str
+		+category: str
+		+completed: bool
+		+mark_complete()
+		+to_dict() dict
+	}
+
+	class Scheduler {
+		+pet: Pet
+		+tasks: List~Task~
+		+time_budget: int
+		+filter_by_time() List~Task~
+		+sort_by_priority() List~Task~
+		+build_plan() dict
+		+explain_plan() dict
+	}
+
+	Owner "1" --> "1" Pet : has
+	Task "0..*" --> "1" Pet : involves
+	Scheduler "1" --> "1" Pet : builds plan for
+	Scheduler "1" --> "0..*" Task : selects from
+```
 
 **b. Design changes**
 
